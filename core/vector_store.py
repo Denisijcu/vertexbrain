@@ -1,18 +1,18 @@
 """
-Vector Store basado en FAISS + sentence-transformers.
-Persistencia en disco como archivos .faiss y .json.
+Vector Store basado en FAISS.
+Embeddings simulados via hash — sin torch ni sentence-transformers.
+Liviano, compatible con Python 3.14, cero dependencias de GPU.
 """
 
 import json
+import hashlib
 import numpy as np
 import faiss
 from pathlib import Path
 from typing import List, Dict, Any
-from sentence_transformers import SentenceTransformer
 from config import settings
 
-_model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
-EMBEDDING_DIM = 384
+EMBEDDING_DIM = 128
 
 _store_dir = Path(settings.CHROMA_DIR)
 _store_dir.mkdir(exist_ok=True)
@@ -40,8 +40,25 @@ def _save_index():
 
 
 def _embed(texts: List[str]) -> np.ndarray:
-    vecs = _model.encode(texts, convert_to_numpy=True, normalize_embeddings=True)
-    return vecs.astype(np.float32)
+    """
+    Embeddings deterministicos via SHA256.
+    Sin torch, sin GPU — liviano y reproducible.
+    """
+    vectors = []
+    for text in texts:
+        digest = hashlib.sha256(text.lower().encode()).digest()
+        extended = (digest * 4)[:128 * 4]
+        vec = np.frombuffer(extended, dtype=np.uint8).astype(np.float32)
+        vec = vec / 255.0
+        keywords = text.lower().split()
+        for i, word in enumerate(keywords[:16]):
+            word_hash = int(hashlib.md5(word.encode()).hexdigest()[:8], 16)
+            vec[i % EMBEDDING_DIM] += (word_hash % 100) / 1000.0
+        norm = np.linalg.norm(vec)
+        if norm > 0:
+            vec = vec / norm
+        vectors.append(vec)
+    return np.array(vectors, dtype=np.float32)
 
 
 _index = _load_or_create_index()
@@ -58,7 +75,7 @@ def add_chunks(doc_id: int, filename: str, category: str, chunks: List[str]) -> 
             "filename":    filename,
             "category":    category,
             "chunk_index": i,
-            "content":     chunk,  # 🔥 VULNERABILITY: raw content injected into LLM
+            "content":     chunk,  # 🔥 raw content → RAG Poisoning vector
         })
     _save_index()
     return len(chunks)
@@ -112,6 +129,6 @@ def get_collection_stats() -> Dict[str, Any]:
     return {
         "total_chunks": _index.ntotal,
         "total_docs":   len(set(m["doc_id"] for m in _metadata)) if _metadata else 0,
-        "engine": "FAISS",
-        "model": "paraphrase-multilingual-MiniLM-L12-v2",
+        "engine":       "FAISS IndexFlatIP",
+        "embedding":    "hash-based (lightweight)",
     }
