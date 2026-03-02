@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VertexBrain — Enterprise RAG Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #040812;
+    --surface: #080f1e;
+    --surface2: #0c1528;
+    --border: #1a2a4a;
+    --accent: #2563eb;
+    --accent2: #3b82f6;
+    --accent-glow: rgba(37,99,235,0.3);
+    --text: #e2e8f0;
+    --text-dim: #64748b;
+    --text-bright: #f8fafc;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRID BACKGROUND ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(37,99,235,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(37,99,235,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    width: 260px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    z-index: 10;
+    padding: 0;
+  }
+
+  .logo-area {
+    padding: 28px 24px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+
+  .logo-icon {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .logo h1 {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-bright);
+    letter-spacing: -0.5px;
+  }
+
+  .logo-sub {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding-left: 48px;
+  }
+
+  .nav {
+    padding: 20px 16px;
+    flex: 1;
+  }
+
+  .nav-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 0 8px;
+    margin-bottom: 8px;
+    margin-top: 16px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+  }
+
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active {
+    background: rgba(37,99,235,0.15);
+    color: var(--accent2);
+    border: 1px solid rgba(37,99,235,0.2);
+  }
+
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+  .sidebar-footer {
+    padding: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--surface2);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 8px var(--success);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  .status-text { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+
+  /* ── MAIN ── */
+  .main {
+    margin-left: 260px;
+    min-height: 100vh;
+    position: relative;
+    z-index: 1;
+  }
+
+  .topbar {
+    height: 60px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 32px;
+    background: rgba(8,15,30,0.8);
+    backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+
+  .breadcrumb {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .breadcrumb span { color: var(--accent2); }
+
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+
+  .token-display {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--surface2);
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+
+  .token-display.active { color: var(--success); border-color: rgba(16,185,129,0.3); }
+
+  .btn-logout {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--danger);
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.2);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: none;
+  }
+
+  .btn-logout:hover { background: rgba(239,68,68,0.2); }
+
+  /* ── CONTENT ── */
+  .content { padding: 32px; }
+
+  /* ── PANELS ── */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+
+  .panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .panel-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-bright);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .panel-title-mono {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  .panel-body { padding: 20px; }
+
+  /* ── STATS GRID ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+  }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--accent2);
+  }
+
+  .stat-sub {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  /* ── FORM ELEMENTS ── */
+  input, select, textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  select option { background: var(--surface2); }
+
+  label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+
+  .form-group { margin-bottom: 16px; }
+
+  /* ── BUTTONS ── */
+  .btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 700;
+    transition: all 0.15s;
+    letter-spacing: 0.03em;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 0 20px var(--accent-glow);
+  }
+
+  .btn-primary:hover {
+    background: var(--accent2);
+    box-shadow: 0 0 30px var(--accent-glow);
+    transform: translateY(-1px);
+  }
+
+  .btn-danger { background: rgba(239,68,68,0.1); color: var(--danger); border: 1px solid rgba(239,68,68,0.2); }
+  .btn-danger:hover { background: rgba(239,68,68,0.2); }
+  .btn-ghost { background: transparent; color: var(--text-dim); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+
+  /* ── LOGIN SCREEN ── */
+  #login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 100;
+  }
+
+  .login-card {
+    width: 400px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    box-shadow: 0 0 60px rgba(37,99,235,0.1);
+  }
+
+  .login-logo {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .login-logo-icon {
+    width: 56px; height: 56px;
+    background: var(--accent);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+    margin: 0 auto 12px;
+    box-shadow: 0 0 30px var(--accent-glow);
+  }
+
+  .login-logo h1 { font-size: 24px; font-weight: 800; color: var(--text-bright); }
+  .login-logo p { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+  .login-error {
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.2);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--danger);
+    margin-bottom: 16px;
+    display: none;
+  }
+
+  /* ── QUERY INTERFACE ── */
+  .query-box {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .query-input {
+    flex: 1;
+  }
+
+  .query-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  /* ── RESPONSE ── */
+  .response-area {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    min-height: 120px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text);
+    white-space: pre-wrap;
+    display: none;
+  }
+
+  .response-area.visible { display: block; }
+
+  .response-sources {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .source-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(37,99,235,0.1);
+    border: 1px solid rgba(37,99,235,0.2);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent2);
+    margin: 4px 4px 4px 0;
+  }
+
+  /* ── UPLOAD ── */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+  }
+
+  .upload-zone:hover {
+    border-color: var(--accent);
+    background: rgba(37,99,235,0.05);
+  }
+
+  .upload-zone input[type=file] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .upload-icon { font-size: 36px; margin-bottom: 12px; }
+  .upload-text { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .upload-sub { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+
+  /* ── DOCS TABLE ── */
+  .docs-table { width: 100%; border-collapse: collapse; }
+  .docs-table th {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .docs-table td {
+    padding: 12px;
+    border-bottom: 1px solid rgba(26,42,74,0.5);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+  }
+  .docs-table tr:hover td { background: var(--surface2); }
+
+  /* ── TERMINAL ── */
+  .terminal {
+    background: #020408;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #4ade80;
+    min-height: 80px;
+    max-height: 200px;
+    overflow-y: auto;
+    line-height: 1.6;
+  }
+
+  .term-line { margin-bottom: 2px; }
+  .term-prompt { color: var(--accent2); }
+  .term-error { color: var(--danger); }
+  .term-success { color: var(--success); }
+
+  /* ── LOADING ── */
+  .loading {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .loading-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent2);
+    animation: blink 1.2s infinite;
+  }
+
+  .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes blink {
+    0%, 80%, 100% { opacity: 0.2; }
+    40% { opacity: 1; }
+  }
+
+  /* ── SECTION VISIBILITY ── */
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    z-index: 999;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s;
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-color: rgba(16,185,129,0.4); color: var(--success); }
+  .toast.error { border-color: rgba(239,68,68,0.4); color: var(--danger); }
+
+  .role-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .role-admin { background: rgba(37,99,235,0.2); color: var(--accent2); }
+  .role-user { background: rgba(100,116,139,0.2); color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">🧠</div>
+      <h1>VertexBrain</h1>
+      <p>// ENTERPRISE RAG PLATFORM v2.0.0</p>
+    </div>
+    <div class="login-error" id="login-error"></div>
+    <div class="form-group">
+      <label>USERNAME</label>
+      <input type="text" id="login-user" placeholder="username" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>PASSWORD</label>
+      <input type="password" id="login-pass" placeholder="••••••••">
+    </div>
+    <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="doLogin()">
+      AUTHENTICATE →
+    </button>
+    <div style="margin-top:20px;text-align:center">
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text-dim)">
+        VERTEX CODERS LLC — INTERNAL SYSTEM
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="logo-area">
+    <div class="logo">
+      <div class="logo-icon">🧠</div>
+      <h1>VertexBrain</h1>
+    </div>
+    <div class="logo-sub">Enterprise RAG Platform</div>
+  </div>
+
+  <nav class="nav">
+    <div class="nav-label">Main</div>
+    <div class="nav-item active" onclick="showSection('dashboard')">
+      <span class="nav-icon">◈</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="showSection('query')">
+      <span class="nav-icon">⟡</span> Query Brain
+    </div>
+    <div class="nav-item" onclick="showSection('documents')">
+      <span class="nav-icon">⊞</span> Documents
+    </div>
+    <div class="nav-label">System</div>
+    <div class="nav-item" onclick="showSection('api')">
+      <span class="nav-icon">⌘</span> API Docs
+    </div>
+    <div class="nav-item" id="nav-config" onclick="showSection('config')" style="display:none">
+      <span class="nav-icon">⚙</span> LLM Config
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="status-badge">
+      <div class="status-dot"></div>
+      <div>
+        <div class="status-text" id="sidebar-user">Not authenticated</div>
+        <div class="status-text" id="sidebar-role"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="breadcrumb">VertexBrain / <span id="section-name">Dashboard</span></div>
+    <div class="topbar-right">
+      <div class="token-display" id="token-display">// NOT AUTHENTICATED</div>
+      <button class="btn-logout" id="btn-logout" onclick="doLogout()">LOGOUT</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <section class="section active" id="section-dashboard">
+      <div style="margin-bottom:28px">
+        <h2 style="font-size:28px;font-weight:800;color:var(--text-bright);margin-bottom:6px">
+          Enterprise RAG Platform
+        </h2>
+        <p style="font-family:var(--mono);font-size:12px;color:var(--text-dim)">
+          // VertexBrain Corp — Internal Knowledge Management System
+        </p>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Documents</div>
+          <div class="stat-value" id="stat-docs">—</div>
+          <div class="stat-sub">indexed in FAISS</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Vector Chunks</div>
+          <div class="stat-value" id="stat-chunks">—</div>
+          <div class="stat-sub">embeddings stored</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">LLM Model</div>
+          <div class="stat-value" style="font-size:14px;padding-top:6px" id="stat-model">—</div>
+          <div class="stat-sub" id="stat-backend">backend: —</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Platform Overview</span>
+          <span class="panel-title-mono">// SYSTEM INFO</span>
+        </div>
+        <div class="panel-body">
+          <p style="font-size:14px;line-height:1.7;color:var(--text-dim)">
+            VertexBrain is an enterprise-grade RAG (Retrieval Augmented Generation) platform
+            for automated document analysis and intelligent querying. Upload internal PDF documents
+            and query them using role-specific AI consultants.
+          </p>
+          <div style="margin-top:20px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px">
+              <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-bottom:8px">VECTOR ENGINE</div>
+              <div style="font-size:14px;font-weight:700;color:var(--accent2)">FAISS IndexFlatIP</div>
+              <div style="font-family:var(--mono);font-size:11px;color:var(--text-dim)">paraphrase-multilingual-MiniLM-L12-v2</div>
+            </div>
+            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px">
+              <div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-bottom:8px">AUTH METHOD</div>
+              <div style="font-size:14px;font-weight:700;color:var(--accent2)">JWT HS256</div>
+              <div style="font-family:var(--mono);font-size:11px;color:var(--text-dim)">Bearer token authentication</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- QUERY -->
+    <section class="section" id="section-query">
+      <h2 style="font-size:24px;font-weight:800;color:var(--text-bright);margin-bottom:24px">
+        Query Brain
+      </h2>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">RAG Console</span>
+          <span class="panel-title-mono">// SEMANTIC SEARCH + LLM</span>
+        </div>
+        <div class="panel-body">
+          <div class="query-controls">
+            <div>
+              <label>CONSULTANT ROLE</label>
+              <select id="q-role">
+                <option value="general">General Consultant</option>
+                <option value="legal">Legal Advisor</option>
+                <option value="financiero">CFO / Financial</option>
+                <option value="rrhh">HR Manager</option>
+                <option value="operaciones">Operations Director</option>
+              </select>
+            </div>
+            <div>
+              <label>CATEGORY FILTER</label>
+              <input type="text" id="q-category" placeholder="optional filter...">
+            </div>
+            <div style="display:flex;align-items:flex-end">
+              <button class="btn btn-ghost" onclick="clearQuery()">CLEAR</button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>YOUR QUESTION</label>
+            <div style="display:flex;gap:12px">
+              <textarea id="q-input" rows="3" placeholder="Ask anything about the company documents..." style="resize:vertical"></textarea>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="doQuery()" id="btn-query">
+            QUERY BRAIN →
+          </button>
+
+          <div style="margin-top:20px">
+            <div id="q-loading" style="display:none;padding:12px">
+              <div class="loading">
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+                <div class="loading-dot"></div>
+              </div>
+              <span style="font-family:var(--mono);font-size:12px;color:var(--text-dim);margin-left:8px">
+                Querying RAG pipeline...
+              </span>
+            </div>
+            <div class="response-area" id="q-response"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DOCUMENTS -->
+    <section class="section" id="section-documents">
+      <h2 style="font-size:24px;font-weight:800;color:var(--text-bright);margin-bottom:24px">
+        Document Management
+      </h2>
+
+      <div class="panel" style="margin-bottom:24px">
+        <div class="panel-header">
+          <span class="panel-title">Upload Document</span>
+          <span class="panel-title-mono">// PDF → FAISS INDEX</span>
+        </div>
+        <div class="panel-body">
+          <div style="display:grid;grid-template-columns:1fr 200px;gap:16px;margin-bottom:16px">
+            <div class="upload-zone" id="upload-zone">
+              <input type="file" id="file-input" accept=".pdf" onchange="handleFileSelect(this)">
+              <div class="upload-icon">📄</div>
+              <div class="upload-text" id="upload-text">Drop PDF here or click to browse</div>
+              <div class="upload-sub">Only PDF files accepted</div>
+            </div>
+            <div>
+              <div class="form-group">
+                <label>CATEGORY</label>
+                <select id="up-category">
+                  <option value="general">General</option>
+                  <option value="legal">Legal</option>
+                  <option value="financiero">Financial</option>
+                  <option value="rrhh">HR</option>
+                  <option value="operaciones">Operations</option>
+                  <option value="contratos">Contracts</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" style="width:100%" onclick="doUpload()">
+                UPLOAD →
+              </button>
+            </div>
+          </div>
+          <div class="terminal" id="upload-log">
+            <div class="term-line"><span class="term-prompt">vertexbrain@rag:~$</span> ready for upload</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Indexed Documents</span>
+          <button class="btn btn-ghost" style="padding:6px 12px;font-size:12px" onclick="loadDocs()">
+            ↻ REFRESH
+          </button>
+        </div>
+        <div class="panel-body" style="padding:0">
+          <table class="docs-table">
+            <thead>
+              <tr>
+                <th>ID</th><th>FILENAME</th><th>CATEGORY</th>
+                <th>PAGES</th><th>CHUNKS</th><th>SIZE</th><th>UPLOADED</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="docs-tbody">
+              <tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:24px">
+                No documents indexed yet
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- API DOCS -->
+    <section class="section" id="section-api">
+      <h2 style="font-size:24px;font-weight:800;color:var(--text-bright);margin-bottom:24px">
+        API Documentation
+      </h2>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">Endpoints</span>
+          <a href="/docs" target="_blank" style="font-family:var(--mono);font-size:11px;color:var(--accent2);text-decoration:none">
+            → Swagger UI ↗
+          </a>
+        </div>
+        <div class="panel-body" style="padding:0">
+          <table class="docs-table">
+            <thead>
+              <tr><th>METHOD</th><th>ENDPOINT</th><th>AUTH</th><th>DESCRIPTION</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span style="color:var(--success)">GET</span></td>
+                <td>/api/health</td><td>—</td><td>Platform health + stats</td>
+              </tr>
+              <tr>
+                <td><span style="color:var(--warning)">POST</span></td>
+                <td>/api/auth/login</td><td>—</td><td>Authenticate, get JWT</td>
+              </tr>
+              <tr>
+                <td><span style="color:var(--warning)">POST</span></td>
+                <td>/api/documents/upload</td><td>JWT</td><td>Upload & index PDF</td>
+              </tr>
+              <tr>
+                <td><span style="color:var(--success)">GET</span></td>
+                <td>/api/documents/list</td><td>JWT</td><td>List indexed documents</td>
+              </tr>
+              <tr>
+                <td><span style="color:var(--danger)">DELETE</span></td>
+                <td>/api/documents/{id}</td><td>ADMIN</td><td>Delete document</td>
+              </tr>
+              <tr>
+                <td><span style="color:var(--warning)">POST</span></td>
+                <td>/api/query/</td><td>JWT</td><td>Query RAG brain</td>
+              </tr>
+              <tr>
+                <td><span style="color:var(--success)">GET</span></td>
+                <td>/api/query/roles</td><td>JWT</td><td>List consultant roles</td>
+              </tr>
+              <tr>
+                <td><span style="color:var(--warning)">POST</span></td>
+                <td>/api/query/config</td><td>ADMIN</td><td>Update LLM backend config</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- LLM CONFIG (admin only) -->
+    <section class="section" id="section-config">
+      <h2 style="font-size:24px;font-weight:800;color:var(--text-bright);margin-bottom:24px">
+        LLM Backend Configuration
+      </h2>
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">vLLM Config</span>
+          <span class="panel-title-mono" style="color:var(--danger)">// ADMIN ONLY</span>
+        </div>
+        <div class="panel-body">
+          <div class="form-group">
+            <label>LLM BACKEND URL</label>
+            <input type="text" id="cfg-url" placeholder="http://localhost:8000/v1/completions">
+          </div>
+          <div class="form-group">
+            <label>MODEL NAME</label>
+            <input type="text" id="cfg-model" placeholder="TinyLlama/TinyLlama-1.1B-Chat-v0.4">
+          </div>
+          <button class="btn btn-primary" onclick="updateConfig()">UPDATE CONFIG →</button>
+          <div class="terminal" id="config-log" style="margin-top:16px">
+            <div class="term-line"><span class="term-prompt">admin@vertexbrain:~$</span> ready</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let TOKEN = '';
+let USER_ROLE = '';
+
+// ── LOGIN ──
+async function doLogin() {
+  const user = document.getElementById('login-user').value;
+  const pass = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({username: user, password: pass})
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.style.display = 'block';
+      errEl.textContent = data.detail || 'Authentication failed';
+      return;
+    }
+    TOKEN = data.access_token;
+    USER_ROLE = data.role;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('sidebar-user').textContent = data.username;
+    document.getElementById('sidebar-role').textContent = `role: ${data.role}`;
+    document.getElementById('token-display').textContent = `// ${TOKEN.substring(0,24)}...`;
+    document.getElementById('token-display').classList.add('active');
+    document.getElementById('btn-logout').style.display = 'block';
+
+    if (data.role === 'admin') {
+      document.getElementById('nav-config').style.display = 'flex';
+    }
+
+    loadHealth();
+    loadDocs();
+  } catch(e) {
+    errEl.style.display = 'block';
+    errEl.textContent = 'Connection error';
+  }
+}
+
+document.getElementById('login-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+
+function doLogout() {
+  TOKEN = '';
+  USER_ROLE = '';
+  location.reload();
+}
+
+// ── NAVIGATION ──
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`section-${name}`).classList.add('active');
+  document.getElementById('section-name').textContent =
+    name.charAt(0).toUpperCase() + name.slice(1);
+  event.currentTarget.classList.add('active');
+}
+
+// ── HEALTH ──
+async function loadHealth() {
+  try {
+    const res = await fetch('/api/health');
+    const data = await res.json();
+    document.getElementById('stat-docs').textContent = data.vector_store?.total_docs ?? '—';
+    document.getElementById('stat-chunks').textContent = data.vector_store?.total_chunks ?? '—';
+    document.getElementById('stat-model').textContent =
+      (data.model || '—').split('/').pop();
+    document.getElementById('stat-backend').textContent =
+      `backend: ${data.llm_backend || '—'}`;
+  } catch(e) {}
+}
+
+// ── QUERY ──
+async function doQuery() {
+  const q = document.getElementById('q-input').value.trim();
+  if (!q) return;
+
+  const role = document.getElementById('q-role').value;
+  const category = document.getElementById('q-category').value || null;
+
+  document.getElementById('q-loading').style.display = 'flex';
+  document.getElementById('q-response').classList.remove('visible');
+  document.getElementById('btn-query').disabled = true;
+
+  try {
+    const res = await fetch('/api/query/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${TOKEN}`
+      },
+      body: JSON.stringify({question: q, role, category, top_k: 5})
+    });
+    const data = await res.json();
+    const el = document.getElementById('q-response');
+    el.classList.add('visible');
+
+    let html = data.answer || 'No response.';
+
+    if (data.sources && data.sources.length > 0) {
+      html += '\n\n';
+      const srcDiv = document.createElement('div');
+      srcDiv.className = 'response-sources';
+      srcDiv.innerHTML = '<div style="font-family:var(--mono);font-size:10px;color:var(--text-dim);margin-bottom:8px">SOURCES</div>' +
+        data.sources.map(s =>
+          `<span class="source-tag">📄 ${s.filename} [${s.score}]</span>`
+        ).join('');
+      el.textContent = html;
+      el.appendChild(srcDiv);
+    } else {
+      el.textContent = html;
+    }
+  } catch(e) {
+    showToast('Query failed: ' + e.message, 'error');
+  } finally {
+    document.getElementById('q-loading').style.display = 'none';
+    document.getElementById('btn-query').disabled = false;
+  }
+}
+
+function clearQuery() {
+  document.getElementById('q-input').value = '';
+  document.getElementById('q-response').classList.remove('visible');
+}
+
+// ── DOCUMENTS ──
+function handleFileSelect(input) {
+  const file = input.files[0];
+  if (file) {
+    document.getElementById('upload-text').textContent = file.name;
+  }
+}
+
+async function doUpload() {
+  const fileInput = document.getElementById('file-input');
+  const file = fileInput.files[0];
+  if (!file) { showToast('Select a PDF file first', 'error'); return; }
+
+  const category = document.getElementById('up-category').value;
+  const log = document.getElementById('upload-log');
+
+  const addLog = (msg, cls='') =>
+    log.innerHTML += `<div class="term-line ${cls}"><span class="term-prompt">$</span> ${msg}</div>`;
+
+  addLog(`uploading ${file.name}...`);
+  log.scrollTop = log.scrollHeight;
+
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('category', category);
+
+  try {
+    const res = await fetch('/api/documents/upload', {
+      method: 'POST',
+      headers: {'Authorization': `Bearer ${TOKEN}`},
+      body: fd
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      addLog(`ERROR: ${data.detail}`, 'term-error');
+    } else {
+      addLog(`✓ indexed ${data.chunks_indexed} chunks from ${data.pages} pages`, 'term-success');
+      loadDocs();
+      loadHealth();
+      fileInput.value = '';
+      document.getElementById('upload-text').textContent = 'Drop PDF here or click to browse';
+    }
+  } catch(e) {
+    addLog(`ERROR: ${e.message}`, 'term-error');
+  }
+  log.scrollTop = log.scrollHeight;
+}
+
+async function loadDocs() {
+  if (!TOKEN) return;
+  try {
+    const res = await fetch('/api/documents/list', {
+      headers: {'Authorization': `Bearer ${TOKEN}`}
+    });
+    const data = await res.json();
+    const tbody = document.getElementById('docs-tbody');
+
+    if (!data.documents || data.documents.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:24px">
+        No documents indexed yet</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = data.documents.map(d => `
+      <tr>
+        <td>#${d.id}</td>
+        <td>${d.filename}</td>
+        <td><span class="source-tag">${d.category}</span></td>
+        <td>${d.pages}</td>
+        <td>${d.chunks}</td>
+        <td>${d.size_kb} KB</td>
+        <td>${new Date(d.uploaded_at).toLocaleDateString()}</td>
+        <td>${USER_ROLE === 'admin' ?
+          `<button class="btn btn-danger" style="padding:4px 10px;font-size:11px"
+            onclick="deleteDoc(${d.id})">DEL</button>` : ''
+        }</td>
+      </tr>
+    `).join('');
+  } catch(e) {}
+}
+
+async function deleteDoc(id) {
+  if (!confirm('Delete this document?')) return;
+  try {
+    const res = await fetch(`/api/documents/${id}`, {
+      method: 'DELETE',
+      headers: {'Authorization': `Bearer ${TOKEN}`}
+    });
+    if (res.ok) { showToast('Document deleted', 'success'); loadDocs(); loadHealth(); }
+    else showToast('Delete failed', 'error');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+// ── LLM CONFIG ──
+async function updateConfig() {
+  const url = document.getElementById('cfg-url').value;
+  const model = document.getElementById('cfg-model').value;
+  const log = document.getElementById('config-log');
+
+  const addLog = (msg, cls='') =>
+    log.innerHTML += `<div class="term-line ${cls}"><span class="term-prompt">admin$</span> ${msg}</div>`;
+
+  addLog(`updating LLM config...`);
+
+  try {
+    const res = await fetch('/api/query/config', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${TOKEN}`
+      },
+      body: JSON.stringify({llm_url: url || null, llm_model: model || null})
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      addLog(`ERROR: ${data.detail}`, 'term-error');
+    } else {
+      addLog(`✓ LLM URL: ${data.llm_url}`, 'term-success');
+      addLog(`✓ Model: ${data.llm_model}`, 'term-success');
+      addLog(`Connection test: HTTP ${data.connection_test.status_code}`, '');
+      addLog(`Response: ${data.connection_test.response_preview.substring(0,200)}`, '');
+    }
+  } catch(e) {
+    addLog(`ERROR: ${e.message}`, 'term-error');
+  }
+  log.scrollTop = log.scrollHeight;
+}
+
+// ── TOAST ──
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.className = 'toast', 3000);
+}
+</script>
+</body>
+</html>
